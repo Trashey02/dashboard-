@@ -26,6 +26,8 @@ GRID = "rgba(87, 189, 255, 0.14)"
 TEXT = "#EAF9FF"
 MUTED = "#8FB8D1"
 BAR_COLORS = ["#00E5FF", "#278CFF", "#7B61FF", "#00C2A8", "#FF7A59", "#FFD166", "#F45BFF", "#49E0A5", "#7DD3FC", "#B9F2FF"]
+ENGAGEMENT_COLORS = ["#00E5FF", "#FF8A3D", "#B388FF", "#FFD166", "#4DDFB2", "#FF5C8A", "#5DA9FF", "#B6E34B"]
+SPENDING_COLORS = ["#FF5A5F", "#3D9BFF", "#FFC857", "#34D399", "#C084FC", "#F97316", "#22D3EE", "#F472B6"]
 
 @st.cache_data
 def load_data():
@@ -110,6 +112,9 @@ def background_css():
 
 st.markdown(background_css(), unsafe_allow_html=True)
 df = load_data()
+product_categories = sorted(df["Product_Category"].dropna().unique())
+ENGAGEMENT_CATEGORY_COLORS = dict(zip(product_categories, ENGAGEMENT_COLORS))
+SPENDING_CATEGORY_COLORS = dict(zip(product_categories, SPENDING_COLORS))
 
 def apply_theme(fig, title=None, height=380):
     fig.update_layout(
@@ -287,14 +292,69 @@ else:
 
     st.markdown("## Engagement & Spending")
     i,j = st.columns(2)
-    sample = filtered.sample(min(len(filtered), 600), random_state=42)
-    f11 = px.scatter(sample, x="Session_Duration_Minutes", y="Total_Amount", color="Product_Category", size="Pages_Viewed",
-                     color_discrete_sequence=BAR_COLORS, title="Session Duration vs Order Value")
-    i.plotly_chart(apply_theme(f11, height=420), use_container_width=True)
+    engagement = filtered.groupby("Product_Category", as_index=False).agg(
+        Avg_Session_Duration=("Session_Duration_Minutes", "mean"),
+        Avg_Pages_Viewed=("Pages_Viewed", "mean"),
+        Orders=("Total_Amount", "size"),
+    ).sort_values("Avg_Session_Duration")
+    f11 = px.bar(
+        engagement,
+        x="Avg_Session_Duration",
+        y="Product_Category",
+        color="Product_Category",
+        orientation="h",
+        text="Avg_Session_Duration",
+        color_discrete_map=ENGAGEMENT_CATEGORY_COLORS,
+        title="Average Engagement by Product Category",
+        labels={
+            "Product_Category": "Product Category",
+            "Avg_Session_Duration": "Average Session Duration (min)",
+            "Avg_Pages_Viewed": "Average Pages Viewed",
+            "Orders": "Orders",
+        },
+        hover_data={"Avg_Session_Duration": ":.1f", "Avg_Pages_Viewed": ":.1f", "Orders": True},
+    )
+    f11.update_traces(
+        texttemplate="%{x:.1f} min",
+        textposition="outside",
+        cliponaxis=False,
+        marker_line_color="#06142F",
+        marker_line_width=1,
+    )
+    f11.update_yaxes(automargin=True)
+    i.plotly_chart(apply_theme(f11, height=max(460, 45 * len(engagement) + 100)), use_container_width=True)
 
-    f12 = px.scatter(sample, x="Pages_Viewed", y="Total_Amount", color="Device_Type", size="Quantity",
-                     color_discrete_sequence=BAR_COLORS, title="Pages Viewed vs Order Value")
-    j.plotly_chart(apply_theme(f12, height=420), use_container_width=True)
+    spending = filtered.groupby("Product_Category", as_index=False).agg(
+        Total_Spending=("Total_Amount", "sum"),
+        Avg_Order_Value=("Total_Amount", "mean"),
+        Orders=("Total_Amount", "size"),
+    ).sort_values("Total_Spending")
+    f12 = px.bar(
+        spending,
+        x="Total_Spending",
+        y="Product_Category",
+        color="Product_Category",
+        orientation="h",
+        text="Total_Spending",
+        color_discrete_map=SPENDING_CATEGORY_COLORS,
+        title="Total Spending by Product Category",
+        labels={
+            "Product_Category": "Product Category",
+            "Total_Spending": "Total Spending (Nu.)",
+            "Avg_Order_Value": "Average Order Value (Nu.)",
+            "Orders": "Orders",
+        },
+        hover_data={"Total_Spending": ":,.0f", "Avg_Order_Value": ":,.0f", "Orders": True},
+    )
+    f12.update_traces(
+        texttemplate="Nu. %{x:,.0f}",
+        textposition="outside",
+        cliponaxis=False,
+        marker_line_color="#06142F",
+        marker_line_width=1,
+    )
+    f12.update_yaxes(automargin=True)
+    j.plotly_chart(apply_theme(f12, height=max(460, 45 * len(spending) + 100)), use_container_width=True)
 
     st.markdown("## Distribution & Customer Loyalty")
     k,l = st.columns(2)
