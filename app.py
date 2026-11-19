@@ -371,9 +371,3 @@ else:
     f14.update_layout(showlegend=False)
     l.plotly_chart(apply_theme(f14, height=380), use_container_width=True)
 
-    st.markdown("## Relationships Between Behaviour Variables")
-    corr_cols = ["Age","Session_Duration_Minutes","Pages_Viewed","Delivery_Time_Days","Customer_Rating","Total_Amount"]
-    corr = filtered[corr_cols].corr(method="spearman")
-    f15 = px.imshow(corr, text_auto=".2f", aspect="auto", color_continuous_scale=["#06142F","#006CA8","#00E5FF"], title="Spearman Correlation Heatmap")
-    st.plotly_chart(apply_theme(f15, height=520), use_container_width=True)
-
